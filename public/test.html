@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clappr Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+</head>
+
+<body style="background:black; margin:0;">
+
+<div id="player"></div>
+
+<script>
+  var player = new Clappr.Player({
+    source: "https://vz-cea98c59-23c.b-cdn.net/c309129c-27b6-4e43-8254-62a15c77c5ee/playlist.m3u8?v=1683126052",
+    parentId: "#player",
+    width: "100%",
+    height: window.innerHeight,
+    autoPlay: true,
+    mute: true
+  });
+</script>
+
+</body>
+</html>
