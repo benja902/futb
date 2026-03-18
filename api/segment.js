@@ -1,37 +1,49 @@
+export const config = {
+  runtime: "nodejs",
+};
+
 export default async function handler(req, res) {
+  const PLAYLIST_URL =
+    "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com/hls/MB5KADfTop.m3u8";
+
   try {
-    const { url } = req.query;
-
-    if (!url) {
-      return res.status(400).send("Falta url");
-    }
-
-    const response = await fetch(url, {
+    const upstream = await fetch(PLAYLIST_URL, {
       headers: {
         "User-Agent": "Mozilla/5.0",
-        "Referer": "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com/",
-        "Origin": "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com"
-      }
+        Referer: "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com/",
+        Origin: "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com",
+      },
+      redirect: "follow",
     });
 
-    if (!response.ok) {
-      console.log("ERROR SEGMENT:", url, response.status);
-      return res.status(response.status).send("Error cargando segmento");
+    if (!upstream.ok) {
+      const text = await upstream.text().catch(() => "");
+      return res.status(upstream.status).send(text || "No se pudo cargar el playlist");
     }
 
-    const contentType =
-      response.headers.get("content-type") || "video/mp2t";
+    const playlistText = await upstream.text();
+    const origin = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}`;
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const rewrittenPlaylist = playlistText
+      .split("\n")
+      .map((line) => {
+        const trimmed = line.trim();
 
-    res.setHeader("Content-Type", contentType);
+        if (!trimmed || trimmed.startsWith("#")) {
+          return line;
+        }
+
+        const absoluteUrl = new URL(trimmed, PLAYLIST_URL).toString();
+        return `${origin}/api/segment?url=${encodeURIComponent(absoluteUrl)}`;
+      })
+      .join("\n");
+
+    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
 
-    res.status(200).send(buffer);
-
+    return res.status(200).send(rewrittenPlaylist);
   } catch (error) {
-    console.log("ERROR FETCH SEGMENT:", error.message);
-    res.status(500).send("Error interno");
+    return res.status(500).send(`Error cargando playlist: ${error.message}`);
   }
 }
