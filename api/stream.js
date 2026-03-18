@@ -2,6 +2,22 @@ export const config = {
   runtime: "nodejs",
 };
 
+function rewritePlaylist(playlistText, baseUrl, origin) {
+  return playlistText
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+
+      if (!trimmed || trimmed.startsWith("#")) {
+        return line;
+      }
+
+      const absoluteUrl = new URL(trimmed, baseUrl).toString();
+      return `${origin}/api/segment?url=${encodeURIComponent(absoluteUrl)}`;
+    })
+    .join("\n");
+}
+
 export default async function handler(req, res) {
   const PLAYLIST_URL =
     "https://hls-b2bc1b24ff.server-1-522c630a83.balontv.com/hls/MB5KADfTop.m3u8";
@@ -24,19 +40,7 @@ export default async function handler(req, res) {
     const playlistText = await upstream.text();
     const origin = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}`;
 
-    const rewrittenPlaylist = playlistText
-      .split("\n")
-      .map((line) => {
-        const trimmed = line.trim();
-
-        if (!trimmed || trimmed.startsWith("#")) {
-          return line;
-        }
-
-        const absoluteUrl = new URL(trimmed, PLAYLIST_URL).toString();
-        return `${origin}/api/segment?url=${encodeURIComponent(absoluteUrl)}`;
-      })
-      .join("\n");
+    const rewrittenPlaylist = rewritePlaylist(playlistText, PLAYLIST_URL, origin);
 
     res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
     res.setHeader("Access-Control-Allow-Origin", "*");
