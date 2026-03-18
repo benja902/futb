@@ -1,25 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Clappr Test</title>
-  <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>Clappr HLS Test</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@clappr/core@latest/dist/clappr-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@clappr/hlsjs-playback@latest/dist/hlsjs-playback.min.js"></script>
 </head>
-
 <body style="background:black; margin:0;">
+  <div id="player"></div>
 
-<div id="player"></div>
+  <script>
+    const player = new Clappr.Player({
+      source: "/api/stream",
+      parentId: "#player",
+      width: "100%",
+      height: window.innerHeight,
+      autoPlay: true,
+      mute: true,
+      plugins: [HlsjsPlayback],
+    });
 
-<script>
-  var player = new Clappr.Player({
-    source: "/api/stream", // 🔥 CLAVE
-    parentId: "#player",
-    width: "100%",
-    height: window.innerHeight,
-    autoPlay: true,
-    mute: true
-  });
-</script>
-
+    player.on(Clappr.Events.PLAYER_ERROR, function(err) {
+      console.log("PLAYER_ERROR", err);
+    });
+  </script>
 </body>
 </html>
