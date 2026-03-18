@@ -2,48 +2,82 @@ import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 
 const STREAM_URL = "/api/stream";
-const HLS_SUPPORTED = Hls.isSupported();
 
 export default function App() {
   const videoRef = useRef(null);
-  const [status, setStatus] = useState(
-    HLS_SUPPORTED ? "Inicializando..." : "HLS no soportado"
-  );
+  const [status, setStatus] = useState("Inicializando...");
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !HLS_SUPPORTED) return;
+    if (!video) return;
 
-    const hls = new Hls();
-    hls.loadSource(STREAM_URL);
-    hls.attachMedia(video);
+    let hls;
 
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      setStatus("Reproduciendo...");
-      video.play().catch(() => {
-        setStatus("Presiona play");
+    const onVideoError = () => {
+      const err = video.error;
+      console.log("VIDEO ERROR", err);
+      setStatus("Error al reproducir en este dispositivo");
+    };
+
+    video.addEventListener("error", onVideoError);
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = STREAM_URL;
+      setStatus("Usando reproducción nativa");
+
+      video
+        .play()
+        .then(() => setStatus("Reproduciendo"))
+        .catch(() => setStatus("Presiona play"));
+
+      return () => {
+        video.removeEventListener("error", onVideoError);
+      };
+    }
+
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
       });
-    });
 
-    hls.on(Hls.Events.ERROR, (_event, data) => {
-      console.error("HLS error:", data);
-      setStatus(`Error: ${data.details}`);
-    });
+      hls.loadSource(STREAM_URL);
+      hls.attachMedia(video);
 
-    return () => hls.destroy();
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setStatus("Manifest cargado");
+        video.play().catch(() => {
+          setStatus("Presiona play");
+        });
+      });
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        console.log("HLS ERROR", data);
+        setStatus(`Error HLS: ${data.details}`);
+      });
+    } else {
+      setStatus("Este navegador no soporta HLS");
+    }
+
+    return () => {
+      video.removeEventListener("error", onVideoError);
+      if (hls) hls.destroy();
+    };
   }, []);
 
   return (
-    <div style={{ padding: "20px", textAlign: "center" }}>
-      <h1>HLS Player con Proxy</h1>
+    <div style={{ padding: 20, textAlign: "center" }}>
+      <h1>Fútbol en vivo</h1>
+
       <video
         ref={videoRef}
         controls
-        autoPlay
-        muted
         playsInline
-        style={{ width: "800px", maxWidth: "100%" }}
+        muted
+        autoPlay
+        style={{ width: "100%", maxWidth: "900px", background: "#000" }}
       />
+
       <p>{status}</p>
     </div>
   );
